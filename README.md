@@ -10,8 +10,7 @@
   у вас это успешно делать в коде.
 - Общение сервисов по http-json-rpc
 - должны успешно проходить make precommit и make run-all в корневой папке
-- Наладить общение с product-service (в хендлере Checkout.listCart). Токен для общения с product-service получить,
-  написав в личку @badger_za
+- Наладить общение с product-service (в хендлере Checkout.listCart).
 
 *Дедлайн: 27 мая, 23:59 (сдача) / 30 мая, 23:59 (проверка)*
 
