@@ -1,0 +1,8 @@
+database_dsn: "secret"
+kafka_brokers:
+  - "kafka_1:9092"
+  - "kafka_2:9092"
+kafka_topic: "orders"
+consumer_group: "route256_notifications"
+tg_bot_api_token: "secret"
+tg_bot_chat_id: "secret"

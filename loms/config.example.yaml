@@ -1,0 +1,8 @@
+grpc_port: 8082
+http_port: 8080
+database_dsn: "secret"
+max_awaiting_payment: "10m"
+kafka_brokers:
+  - "kafka_1:9092"
+  - "kafka_2:9092"
+kafka_topic: "orders"

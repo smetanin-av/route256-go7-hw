@@ -1,0 +1,82 @@
+syntax = 'proto3';
+
+package route256.api.v1.checkout;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "route256/checkout/pkg/checkout/v1;checkout_v1";
+
+service CheckoutService {
+
+  rpc AddToCart(AddToCartRequest) returns (AddToCartResponse) {
+    option (google.api.http) = {
+      post: "/v1/addToCart"
+      body: "*"
+    };
+  }
+
+  rpc DeleteFromCart(DeleteFromCartRequest) returns (DeleteFromCartResponse) {
+    option (google.api.http) = {
+      post: "/v1/deleteFromCart"
+      body: "*"
+    };
+  }
+
+  rpc ListCart(ListCartRequest) returns (ListCartResponse) {
+    option (google.api.http) = {
+      post: "/v1/listCart"
+      body: "*"
+    };
+  }
+
+  rpc Purchase(PurchaseRequest) returns (PurchaseResponse) {
+    option (google.api.http) = {
+      post: "/v1/purchase"
+      body: "*"
+    };
+  }
+
+}
+
+message AddToCartRequest {
+  int64 user = 1 [(validate.rules).int64 = {gt: 0}];
+  uint32 sku = 2 [(validate.rules).uint32 = {gt: 0}];
+  uint32 count = 3 [(validate.rules).uint32 = {gt: 0, lt:65535}];
+}
+
+message AddToCartResponse {
+}
+
+message DeleteFromCartRequest {
+  int64 user = 1 [(validate.rules).int64 = {gt: 0}];
+  uint32 sku = 2 [(validate.rules).uint32 = {gt: 0}];
+  uint32 count = 3 [(validate.rules).uint32 = {gt: 0, lt:65535}];
+}
+
+message DeleteFromCartResponse {
+}
+
+message ListCartRequest {
+  int64 user = 1 [(validate.rules).int64 = {gt: 0}];
+}
+
+message ListCartResponse {
+  repeated ListCartResponseItem items = 1;
+  uint32 total_price = 2;
+}
+
+message ListCartResponseItem {
+  uint32 sku = 1;
+  uint32 count = 2;
+  string name = 3;
+  uint32 price = 4;
+}
+
+message PurchaseRequest {
+  int64 user = 1 [(validate.rules).int64 = {gt: 0}];
+}
+
+message PurchaseResponse {
+  int64 order_id = 1 [(validate.rules).int64 = {gt: 0}];
+}

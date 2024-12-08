@@ -1,0 +1,111 @@
+syntax = 'proto3';
+
+package route256.api.v1.loms;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "route256/loms/pkg/loms/v1;loms_v1";
+
+service LomsService {
+
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/createOrder"
+      body: "*"
+    };
+  }
+
+  rpc ListOrder(ListOrderRequest) returns (ListOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/listOrder"
+      body: "*"
+    };
+  }
+
+  rpc OrderPayed(OrderPayedRequest) returns (OrderPayedResponse) {
+    option (google.api.http) = {
+      post: "/v1/orderPayed"
+      body: "*"
+    };
+  }
+
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/cancelOrder"
+      body: "*"
+    };
+  }
+
+  rpc GetStocks(GetStocksRequest) returns (GetStocksResponse) {
+    option (google.api.http) = {
+      get: "/v1/stocks/{sku}"
+    };
+  }
+
+}
+
+message CreateOrderRequest {
+  int64 user = 1 [(validate.rules).int64 = {gt: 0}];
+  repeated CreateOrderRequestItem items = 2 [(validate.rules).repeated = {min_items: 1}];
+}
+
+message CreateOrderRequestItem {
+  uint32 sku = 1 [(validate.rules).uint32 = {gt: 0}];
+  uint32 count = 2 [(validate.rules).uint32 = {gt: 0, lt:65535}];
+}
+
+message CreateOrderResponse {
+  int64 order_id = 1;
+}
+
+message ListOrderRequest {
+  int64 order_id = 1 [(validate.rules).int64 = {gt: 0}];
+}
+
+enum OrderStatus {
+  INVALID = 0;
+  NEW = 1;
+  AWAITING_PAYMENT = 2;
+  FAILED = 3;
+  PAYED = 4;
+  CANCELLED = 5;
+}
+
+message ListOrderResponse {
+  OrderStatus status = 1;
+  int64 user = 2;
+  repeated ListOrderResponseItem items = 3;
+}
+
+message ListOrderResponseItem {
+  uint32 sku = 1 [(validate.rules).uint32 = {gt: 0}];
+  uint32 count = 2 [(validate.rules).uint32 = {gt: 0, lt:65535}];
+}
+
+message OrderPayedRequest {
+  int64 order_id = 1 [(validate.rules).int64 = {gt: 0}];
+}
+
+message OrderPayedResponse {
+}
+
+message CancelOrderRequest {
+  int64 order_id = 1 [(validate.rules).int64 = {gt: 0}];
+}
+
+message CancelOrderResponse {
+}
+
+message GetStocksRequest {
+  uint32 sku = 1 [(validate.rules).uint32 = {gt: 0}];
+}
+
+message GetStocksResponse {
+  repeated GetStocksResponseItem stocks = 1;
+}
+
+message GetStocksResponseItem {
+  int64 warehouse_id = 1;
+  uint64 count = 2;
+}

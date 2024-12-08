@@ -1,0 +1,7 @@
+grpc_port: 8082
+http_port: 8080
+token: "secret"
+loms_service: "loms_app:8082"
+product_service: "route256.pavl.uk:8082"
+database_dsn: "secret"
+redis_addr: "redis:6379"

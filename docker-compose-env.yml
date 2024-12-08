@@ -1,0 +1,281 @@
+version: "3.3"
+
+networks:
+  route256:
+    driver: bridge
+
+volumes:
+  checkout_db:
+    driver: local
+  loms_db:
+    driver: local
+  notific_db:
+    driver: local
+  mongodb:
+    driver: local
+  elasticsearch:
+    driver: local
+
+services:
+  checkout_db:
+    image: postgres:15.1
+    environment:
+      POSTGRES_DB: checkout
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - checkout_db:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U db_user -d checkout" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    networks:
+      - route256
+
+  checkout_pgb:
+    image: pgbouncer/pgbouncer:1.15.0
+    depends_on:
+      - checkout_db
+    environment:
+      DATABASES_HOST: checkout_db
+      DATABASES_PORT: 5432
+      DATABASES_USER: db_user
+      DATABASES_PASSWORD: db_password
+      DATABASES_DBNAME: checkout
+      PGBOUNCER_LISTEN_PORT: 5439
+      PGBOUNCER_STATS_PERIOD: 300
+    networks:
+      - route256
+
+  loms_db:
+    image: postgres:15.1
+    environment:
+      POSTGRES_DB: loms
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - loms_db:/var/lib/postgresql/data
+    ports:
+      - "25432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U db_user -d loms" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    networks:
+      - route256
+
+  loms_pgb:
+    image: pgbouncer/pgbouncer:1.15.0
+    depends_on:
+      - loms_db
+    environment:
+      DATABASES_HOST: loms_db
+      DATABASES_PORT: 5432
+      DATABASES_USER: db_user
+      DATABASES_PASSWORD: db_password
+      DATABASES_DBNAME: loms
+      PGBOUNCER_LISTEN_PORT: 5439
+      PGBOUNCER_STATS_PERIOD: 300
+    networks:
+      - route256
+
+  redis:
+    image: bitnami/redis
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - route256
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: ERROR
+      ZOOKEEPER_TOOLS_LOG4J_LOGLEVEL: ERROR
+    healthcheck:
+      test: nc -z localhost 2181 || exit -1
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    networks:
+      - route256
+
+  kafka_1:
+    image: confluentinc/cp-kafka:latest
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://kafka_1:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_1:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: kafka-topics --bootstrap-server kafka_1:9092 --list
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - route256
+    command: sh -c "((sleep 15 && kafka-topics --create --if-not-exists --zookeeper zookeeper:2181 --replication-factor 1 --partitions 1 --topic orders)&) && /etc/confluent/docker/run"
+
+  kafka_2:
+    image: confluentinc/cp-kafka:latest
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://kafka_2:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka_2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: kafka-topics --bootstrap-server kafka_2:9092 --list
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - route256
+    command: sh -c "((sleep 15 && kafka-topics --create --if-not-exists --zookeeper zookeeper:2181 --replication-factor 1 --partitions 1 --topic orders)&) && /etc/confluent/docker/run"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka_1:9092,kafka_2:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      LOGGING_LEVEL_ROOT: ERROR
+      LOGGING_LEVEL_COM_PROVECTUS: ERROR
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka_1:
+        condition: service_healthy
+      kafka_2:
+        condition: service_healthy
+    ports:
+      - "48080:8080"
+    networks:
+      - route256
+
+  notific_db:
+    image: postgres:15.1
+    environment:
+      POSTGRES_DB: notific
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - notific_db:/var/lib/postgresql/data
+    ports:
+      - "35432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U db_user -d notific" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    networks:
+      - route256
+
+  notific_pgb:
+    image: pgbouncer/pgbouncer:1.15.0
+    ports:
+      - "35439:5439"
+    depends_on:
+      - loms_db
+    environment:
+      DATABASES_HOST: notific_db
+      DATABASES_PORT: 5432
+      DATABASES_USER: db_user
+      DATABASES_PASSWORD: db_password
+      DATABASES_DBNAME: notific
+      PGBOUNCER_LISTEN_PORT: 5439
+      PGBOUNCER_STATS_PERIOD: 300
+    networks:
+      - route256
+
+  mongodb:
+    image: mongo:5.0
+    volumes:
+      - mongodb:/data/db
+
+  elasticsearch:
+    image: elasticsearch:7.17.6
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+
+  graylog:
+    image: graylog/graylog:5.1.1
+    volumes:
+      - ./graylog.conf:/usr/share/graylog/data/config/graylog.conf
+    environment:
+      - "GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}"
+      - "GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}"
+      - "GRAYLOG_HTTP_BIND_ADDRESS=${GRAYLOG_HTTP_BIND_ADDRESS}"
+      - "GRAYLOG_HTTP_EXTERNAL_URI=${GRAYLOG_HTTP_EXTERNAL_URI}"
+    depends_on:
+      - mongodb
+      - elasticsearch
+    ports:
+      - "${GRAYLOG_WEB_PORT}:7555"
+
+  filed:
+    command: /file.d/file.d --config /config.yaml
+    image: ozonru/file.d:latest-linux-amd64
+    volumes:
+      - ./filed.yaml:/config.yaml
+    depends_on:
+      - graylog
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686" # web
+      - "14268:14268"
+      - "9411:9411"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+    networks:
+      - route256

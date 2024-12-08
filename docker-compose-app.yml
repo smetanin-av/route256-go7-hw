@@ -1,0 +1,53 @@
+version: "3.3"
+
+services:
+  checkout_app:
+    image: checkout
+    build: ./checkout/
+    ports:
+      - "18080:8080"
+      - "18082:8082"
+    depends_on:
+      checkout_db:
+        condition: service_healthy
+      checkout_pgb:
+        condition: service_started
+    networks:
+      - route256
+
+  loms_app:
+    image: loms
+    build: ./loms/
+    ports:
+      - "28080:8080"
+      - "28082:8082"
+    depends_on:
+      loms_db:
+        condition: service_healthy
+      loms_pgb:
+        condition: service_started
+      zookeeper:
+        condition: service_healthy
+      kafka_1:
+        condition: service_healthy
+      kafka_2:
+        condition: service_healthy
+    networks:
+      - route256
+
+  notific_app:
+    image: notifications
+    build: ./notifications/
+    depends_on:
+      notific_db:
+        condition: service_healthy
+      notific_pgb:
+        condition: service_started
+      zookeeper:
+        condition: service_healthy
+      kafka_1:
+        condition: service_healthy
+      kafka_2:
+        condition: service_healthy
+    networks:
+      - route256
